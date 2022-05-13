@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 function Login() {
   const [username, setUsername] = useState('')
   const navigate = useNavigate()
+  let isPresent = false
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'))
@@ -23,9 +24,29 @@ function Login() {
 
     let session = localStorage.getItem('session')
     session = session ? JSON.parse(session) : []
-    const payload = { username, time: new Date(), status: 'active' }
 
-    session.push(payload)
+    let payload
+
+    isPresent = session.some((s) => {
+      return s.username === username && s.status === 'idle'
+    })
+    if (session.length > 0 && isPresent) {
+      session = session.map((s) => {
+        if (s.username !== username) {
+          return s
+        }
+        return {
+          ...s,
+          time: new Date(),
+          status: 'active',
+        }
+      })
+    } else {
+      payload = { username, time: new Date(), status: 'active' }
+
+      session.push(payload)
+    }
+
     localStorage.setItem('session', JSON.stringify(session))
     localStorage.setItem('user', JSON.stringify(payload))
 
@@ -56,21 +77,39 @@ function Login() {
 }
 
 function Home() {
+  const [focus, setFocus] = useState(true)
+
   const navigate = useNavigate()
   const user = JSON.parse(sessionStorage.getItem('user'))
-  const session = JSON.parse(localStorage.getItem('session'))
+  let session = JSON.parse(localStorage.getItem('session'))
+
+  useEffect(() => {
+    let session = JSON.parse(localStorage.getItem('session'))
+
+    const updateSession = () => {
+      session = session.map((s) => {
+        if (s.username !== user.username) {
+          return s
+        }
+        return {
+          ...s,
+          status: 'idle',
+        }
+      })
+
+      localStorage.setItem('session', JSON.stringify(session))
+    }
+
+    if (document.hasFocus()) {
+      setFocus(true)
+    }
+
+    if (!focus) {
+      updateSession()
+    }
+  }, [focus, user.username])
 
   const handleLogOut = () => {
-    // let session = JSON.parse(localStorage.getItem('session'))
-    // // session = session.filter((s) => {
-    // //   return s.username !== user.username
-    // // })
-    // session = session.map((s) => {
-    //   if (s.username !== user.username) return s
-    //   return { ...s, status: 'idle' }
-    // })
-
-    // localStorage.setItem('session', JSON.stringify(session))
     localStorage.removeItem('user')
     sessionStorage.removeItem('user')
 
@@ -78,7 +117,18 @@ function Home() {
   }
 
   const logoutUser = (username) => {
-    console.log(username)
+    let session = JSON.parse(localStorage.getItem('session'))
+    session = session.filter((s) => {
+      return s.username !== username
+    })
+
+    localStorage.setItem('session', JSON.stringify(session))
+
+    if (user.username === username) {
+      localStorage.removeItem('user')
+      sessionStorage.removeItem('user')
+      navigate('/')
+    }
   }
 
   return (
